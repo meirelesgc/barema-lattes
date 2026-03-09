@@ -54,7 +54,7 @@ def evaluation(lattes_id: str):
     return resultados
 
 
-def run_ai_evaluation(researchers: pl.DataFrame):
+def analyze_projects(researchers: pl.DataFrame):
     df_resultado = researchers.with_columns(
         pl.col("lattes_id")
         .map_elements(

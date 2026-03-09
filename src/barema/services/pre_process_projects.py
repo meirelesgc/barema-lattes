@@ -1,6 +1,7 @@
 import os
 import re
 import shutil
+from pathlib import Path
 
 import httpx
 import pdfplumber
@@ -13,7 +14,7 @@ def download_attachments(df: pl.DataFrame, input_folder: str):
 
     for row in df.iter_rows(named=True):
         link = row["Link"]
-        cpf = row["CPF"]
+        lattes_id = row["lattes_id"]
 
         if link == "Não encontrado":
             continue
@@ -23,18 +24,10 @@ def download_attachments(df: pl.DataFrame, input_folder: str):
 
             with httpx.stream("GET", link, timeout=15.0) as response:
                 if response.status_code == 200:
-                    attachment_filename = link.split("/")[-1]
-                    attachment_filename = re.sub(
-                        r'[\\/*?:"<>|)]', "", attachment_filename
-                    )
-
-                    if not attachment_filename:
-                        attachment_filename = f"anexo_{cpf}.pdf"
-
+                    attachment_filename = f"{lattes_id}.pdf"
                     attachment_path = os.path.join(
                         attachment_folder, attachment_filename
                     )
-
                     with open(attachment_path, "wb") as f:
                         for chunk in response.iter_bytes(chunk_size=8192):
                             f.write(chunk)
@@ -138,3 +131,16 @@ def extract_project_metadata(input_folder: str, output_csv: str = "resultado_cnp
     else:
         print("\nNenhum dado foi extraído.")
         return None
+
+
+def normalize_filename(df: pl.DataFrame, folder_path: str, column: str):
+    base_path = Path(folder_path)
+
+    for row in df.iter_rows(named=True):
+        arquivo = row.get(column)
+        lattes_id = row.get("lattes_id")
+        old_path = base_path / arquivo
+        new_path = base_path / f"{lattes_id}.pdf"
+
+        if old_path.exists():
+            old_path.rename(new_path)

@@ -7,7 +7,7 @@ from barema.db.connection import get_session
 def get_researchers():
     session = get_session()
     query = """
-    SELECT id::text AS researcher_id, name AS nome_lattes, lattes_id,
+    SELECT id::text AS researcher_id, name AS nome, lattes_id,
         openalex_researcher.h_index
     FROM researcher
     LEFT JOIN openalex_researcher ON
@@ -17,7 +17,7 @@ def get_researchers():
     data = result.mappings().all()
     schema = {
         "researcher_id": pl.Utf8,
-        "nome_lattes": pl.Utf8,
+        "nome": pl.Utf8,
         "lattes_id": pl.Utf8,
         "h_index": pl.Utf8,
     }
@@ -130,7 +130,7 @@ def get_other_technical_production():
     return pl.DataFrame(data, schema=schema)
 
 
-def get_books_chapters():
+def get_books():
     session = get_session()
     query = """
     SELECT researcher_id::text, year::int, COUNT(*) as qtd

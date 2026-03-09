@@ -8,6 +8,7 @@ from barema.services.download_lattes import add_lattes_id, download_lattes_xml
 from barema.services.pre_process_projects import (
     download_attachments,
     extract_project_metadata,
+    normalize_filename,
 )
 
 
@@ -36,7 +37,7 @@ def seed():
                 "run",
                 "--rm",
                 "-e",
-                "HOP_FILE_PATH=$${PROJECT_HOME}/workflows/Seeding.hwf",
+                "HOP_FILE_PATH=${PROJECT_HOME}/workflows/Seeding.hwf",
                 "barema_hop",
             ]
             subprocess.run(hop_command, check=True)
@@ -63,8 +64,9 @@ def process_cvs():
                 "Link": pl.Utf8,
             },
         )
-        download_attachments(researchers, folder_path)
         researchers = add_lattes_id(researchers)
+        normalize_filename(researchers, folder_path, "Arquivo")
+        download_attachments(researchers, folder_path)
         download_lattes_xml(researchers)
 
         hop_command = [
