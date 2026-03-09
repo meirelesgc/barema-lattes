@@ -1,6 +1,11 @@
+import os
 from datetime import datetime
+from pathlib import Path
 
-from barema.services.ai_evaluation import analyze_projects
+import polars as pl
+from tqdm import tqdm
+
+from barema.services.ai_evaluation import evaluation
 from barema.services.ai_extraction import get_transfer_of_technology
 from barema.services.queries import (
     get_articles,
@@ -154,18 +159,77 @@ def human_resources_csv(base_year=current_year):
 
 
 def project_analysis_csv(base_year=current_year):
+    def get_processed_ids(path):
+        if not os.path.exists(path):
+            return set()
+
+        df = pl.read_csv(path)
+        return set(df["lattes_id"].to_list())
+
     researchers = get_researchers()
 
-    # Bolsa
     foment_level = get_foment_level()
     researchers = merge_data(researchers, foment_level)
 
-    # 5 ou 10 Anos
     researchers = add_evaluation_window(researchers)
-    researchers = analyze_projects(researchers)
 
-    researchers.write_csv("data/csv/project_analysis.csv")
-    researchers.write_excel("data/csv/project_analysis.xlsx")
+    output_path = "data/csv/project_analysis.csv"
+
+    processed = get_processed_ids(output_path)
+
+    rows = list(researchers.iter_rows(named=True))
+
+    for row in tqdm(rows, desc="Analisando projetos", total=len(rows)):
+        if row["lattes_id"] in processed:
+            continue
+
+        lattes_id = row["lattes_id"]
+
+        resultado = evaluation(lattes_id)
+
+        linha = {**row, **resultado}
+
+        df = pl.DataFrame([linha])
+
+        if not os.path.exists(output_path):
+            df.write_csv(output_path)
+        else:
+            with open(output_path, "a", encoding="utf-8") as f:
+                df.write_csv(f, include_header=False)
+
+
+def unir_csv_xlsx_por_lattes_id(pasta, output="data/csv/researchers_unificado.xlsx"):
+    arquivos = sorted(Path(pasta).glob("*"))
+    dfs = []
+
+    for arq in arquivos:
+        if arq.suffix == ".csv":
+            df = pl.read_csv(arq)
+        elif arq.suffix in [".xlsx", ".xls"]:
+            df = pl.read_excel(arq)
+        else:
+            continue
+
+        if "lattes_id" in df.columns:
+            df = df.with_columns(pl.col("lattes_id").cast(pl.Utf8).str.zfill(16))
+
+        dfs.append(df)
+
+    base = dfs[0]
+
+    for df in dfs[1:]:
+        cols_novas = [
+            c for c in df.columns if c not in base.columns or c == "lattes_id"
+        ]
+        df = df.select(cols_novas)
+        base = base.join(df, on="lattes_id", how="left")
+
+    if output.endswith(".csv"):
+        base.write_csv(output)
+    else:
+        base.write_excel(output)
+
+    return base
 
 
 def start_process(base_year=current_year):
@@ -175,3 +239,4 @@ def start_process(base_year=current_year):
     participation_in_project_csv()
     human_resources_csv()
     project_analysis_csv()
+    unir_csv_xlsx_por_lattes_id("data/csv")

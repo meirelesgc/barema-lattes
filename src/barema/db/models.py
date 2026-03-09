@@ -520,7 +520,7 @@ class Software:
     stars: Mapped[Optional[int]] = mapped_column(
         Integer, server_default=text("0"), default=0
     )
-    code: Mapped[Optional[str]] = mapped_column(String, unique=True, default=None)
+    code: Mapped[Optional[str]] = mapped_column(String, default=None)
 
 
 @table_registry.mapped_as_dataclass
@@ -624,8 +624,8 @@ class AdvisoryActivity:
         init=False,
     )
     researcher_id: Mapped[UUID] = mapped_column(ForeignKey("researcher.id"))
-    organ_name: Mapped[str] = mapped_column(String)
-    start_year: Mapped[str] = mapped_column(String)
+    organ_name: Mapped[Optional[str]] = mapped_column(String)
+    start_year: Mapped[Optional[str]] = mapped_column(String)
     sequence_id: Mapped[Optional[int]] = mapped_column(Integer, default=None)
     organ_code: Mapped[Optional[str]] = mapped_column(String, default=None)
     unit_code: Mapped[Optional[str]] = mapped_column(String, default=None)

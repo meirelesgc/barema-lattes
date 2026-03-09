@@ -49,10 +49,8 @@ def add_phd_level(df_time):
 
 
 def add_evaluation_window(df_researchers):
-    levels_10_years = ["SR", "A", "1A", "1B", "B", "1C", "1D"]
-
     return df_researchers.with_columns(
-        pl.when(pl.col("nivel_bolsa").is_in(levels_10_years))
+        pl.when(pl.col("nivel_bolsa").is_not_null() & (pl.col("nivel_bolsa") != ""))
         .then(10)
         .otherwise(5)
         .alias("window_years")
