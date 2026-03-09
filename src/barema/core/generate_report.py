@@ -1,10 +1,14 @@
-import subprocess
 from datetime import datetime
+
+import polars as pl
 
 from barema.services.ai_evaluation import run_ai_evaluation
 from barema.services.ai_extraction import run_ai_extraction
-from barema.services.download_lattes import run_download_process
-from barema.services.pre_process_projects import project_metadata
+from barema.services.download_lattes import add_lattes_id, download_lattes_xml
+from barema.services.pre_process_projects import (
+    download_attachments,
+    extratc_project_metadata,
+)
 from barema.services.queries import (
     get_articles,
     get_assets_ip,
@@ -40,12 +44,18 @@ from barema.services.report_utils import (
 current_year = datetime.now().year
 
 
-def generate_report(base_year=current_year):
+def start_process(base_year=current_year):
     folder_path = r"data/raw/projects"
-    researchers = project_metadata(folder_path)
-    run_download_process(researchers)
-    subprocess.run(["docker", "compose", "run", "--rm", "barema_hop"])
-    researchers = get_researchers()
+    researchers = extratc_project_metadata(folder_path)
+    researchers = pl.DataFrame(
+        researchers,
+        schema={"Arquivo": pl.Utf8, "Nome": pl.Utf8, "CPF": pl.Utf8, "Link": pl.Utf8},
+    )
+    download_attachments(researchers, folder_path)
+    researchers = add_lattes_id(researchers)
+    download_lattes_xml(researchers)
+    researchers = researchers.join(get_researchers(), on="lattes_id", how="left")
+
     phd_time = get_phd_time()
     researchers = merge_data(researchers, phd_time)
     phd_level = add_phd_level(phd_time)

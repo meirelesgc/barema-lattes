@@ -7,18 +7,17 @@ from barema.db.connection import get_session
 def get_researchers():
     session = get_session()
     query = """
-    SELECT id::text AS researcher_id, name AS nome, lattes_id,
+    SELECT id::text AS researcher_id, name AS nome_lattes, lattes_id,
         openalex_researcher.h_index
     FROM researcher
     LEFT JOIN openalex_researcher ON
-        openalex_researcher.researcher_id = researcher.id
-    WHERE lattes_id IN ('6716225567627323','6608165728129698','7401907691814937','1966167015825708');
+        openalex_researcher.researcher_id = researcher.id;
     """
     result = session.execute(text(query))
     data = result.mappings().all()
     schema = {
         "researcher_id": pl.Utf8,
-        "nome": pl.Utf8,
+        "nome_lattes": pl.Utf8,
         "lattes_id": pl.Utf8,
         "h_index": pl.Utf8,
     }
