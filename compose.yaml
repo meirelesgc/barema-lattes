@@ -12,14 +12,14 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    ports: 
+    ports:
       - "5432:5432"
 
   barema_hop:
-    profiles: [barema_hop]
+    profiles: [ barema_hop ]
     image: gleidsoncosta/simcc-extrator:latest
     volumes:
-      - /files/jade-extrator/datasets/lattes_xml:/files/jade-extrator/data/raw/lattes
+      - ./data/raw/lattes:/files/jade-extrator/datasets/lattes_xml
     environment:
       - HOP_LOG_LEVEL=Basic
       - HOP_PROJECT_NAME=Jade-Extrator
