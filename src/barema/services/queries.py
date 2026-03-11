@@ -27,11 +27,13 @@ def get_researchers():
 def get_phd_time():
     session = get_session()
     query = """
-    SELECT researcher_id::text,
+    SELECT DISTINCT ON (researcher_id)
+        researcher_id::text,
         (EXTRACT(YEAR FROM CURRENT_DATE) - education_end)::INT AS tempo_doutorado
     FROM education
     WHERE degree = 'DOCTORATE'
-        AND education_end IS NOT NULL;
+        AND education_end IS NOT NULL
+    ORDER BY researcher_id, education_end ASC;
     """
     result = session.execute(text(query))
     data = result.mappings().all()
@@ -367,4 +369,124 @@ def get_research_projects():
     result = session.execute(text(query))
     data = result.mappings().all()
     schema = {"researcher_id": pl.Utf8, "year": pl.Int32, "qtd": pl.Int64}
+    return pl.DataFrame(data, schema=schema)
+
+
+def fat_articles():
+    session = get_session()
+    query = """
+    SELECT title, year::INT, qualis, periodical_magazine_id::TEXT,
+        researcher_id::TEXT, nature
+    FROM bibliographic_production
+    INNER JOIN bibliographic_production_article 
+        ON bibliographic_production_article.bibliographic_production_id = bibliographic_production.id
+    """
+    result = session.execute(text(query))
+    data = result.mappings().all()
+
+    schema = {
+        "title": pl.Utf8,
+        "year": pl.Int32,
+        "qualis": pl.Utf8,
+        "periodical_magazine_id": pl.Utf8,
+        "researcher_id": pl.Utf8,
+        "nature": pl.Utf8,
+    }
+
+    return pl.DataFrame(data, schema=schema)
+
+
+def fat_books():
+    session = get_session()
+    query = """
+    SELECT title, year::INT, nature, isbn, researcher_id::TEXT
+    FROM bibliographic_production
+        INNER JOIN bibliographic_production_book 
+            ON bibliographic_production_book.bibliographic_production_id = bibliographic_production.id
+
+    UNION ALL
+
+    SELECT title, year::INT, nature, isbn, researcher_id::TEXT
+    FROM bibliographic_production
+        INNER JOIN bibliographic_production_book_chapter
+            ON bibliographic_production_book_chapter.bibliographic_production_id = bibliographic_production.id
+    """
+    result = session.execute(text(query))
+    data = result.mappings().all()
+
+    schema = {
+        "title": pl.Utf8,
+        "year": pl.Int32,
+        "nature": pl.Utf8,
+        "isbn": pl.Utf8,
+        "researcher_id": pl.Utf8,
+    }
+
+    return pl.DataFrame(data, schema=schema)
+
+
+def fat_software():
+    session = get_session()
+    query = """
+    SELECT title, goal, financing_institutionc, researcher_id::TEXT, year::INT,
+        code
+    FROM public.software;
+    """
+    result = session.execute(text(query))
+    data = result.mappings().all()
+
+    schema = {
+        "title": pl.Utf8,
+        "goal": pl.Utf8,
+        "financing_institutionc": pl.Utf8,
+        "researcher_id": pl.Utf8,
+        "year": pl.Int32,
+        "code": pl.Utf8,
+    }
+
+    return pl.DataFrame(data, schema=schema)
+
+
+def fat_patent():
+    session = get_session()
+    query = """
+    SELECT title, category, development_year::INT, details, researcher_id::TEXT, code,
+        grant_date::DATE, deposit_date::DATE
+    FROM public.patent;
+    """
+    result = session.execute(text(query))
+    data = result.mappings().all()
+
+    schema = {
+        "title": pl.Utf8,
+        "category": pl.Utf8,
+        "development_year": pl.Int32,
+        "details": pl.Utf8,
+        "researcher_id": pl.Utf8,
+        "code": pl.Utf8,
+        "grant_date": pl.Date,
+        "deposit_date": pl.Date,
+    }
+
+    return pl.DataFrame(data, schema=schema)
+
+
+def fat_cultivar():
+    session = get_session()
+    query = """
+    SELECT denomination, year::INT, country, code,
+        researcher_id::TEXT
+    FROM public.registered_cultivar;
+    """
+    result = session.execute(text(query))
+    data = result.mappings().all()
+
+    schema = {
+        "denomination": pl.Utf8,
+        "year": pl.Int32,
+        "country": pl.Utf8,
+        "code": pl.Utf8,
+        "researcher_id": pl.Utf8,
+    }
+
     return pl.DataFrame(data, schema=schema)

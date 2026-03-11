@@ -44,18 +44,22 @@ current_year = datetime.now().year
 
 def researcher_profile_csv(base_year=current_year):
     researchers = get_researchers()
+    print(f"Total de linhas (inicial): {researchers.height}")
 
     # Tempo doutorado
     phd_time = get_phd_time()
     researchers = merge_data(researchers, phd_time)
+    print(f"Total de linhas (após phd_time): {researchers.height}")
 
     # Nivel do pesquisador
     phd_level = add_phd_level(phd_time)
     researchers = merge_data(researchers, phd_level)
+    print(f"Total de linhas (após phd_level): {researchers.height}")
 
     # Bolsa
     foment_level = get_foment_level()
     researchers = merge_data(researchers, foment_level)
+    print(f"Total de linhas (após foment_level): {researchers.height}")
 
     # Gerar CSV
     researchers.write_csv("data/csv/researcher_profile.csv")
@@ -64,13 +68,16 @@ def researcher_profile_csv(base_year=current_year):
 
 def technological_production_and_innovation_csv(base_year=current_year):
     researchers = get_researchers()
+    print(f"Total de linhas (inicial): {researchers.height}")
 
     # Bolsa
     foment_level = get_foment_level()
     researchers = merge_data(researchers, foment_level)
+    print(f"Total de linhas (após foment_level): {researchers.height}")
 
     # 5 ou 10 Anos
     researchers = add_evaluation_window(researchers)
+    print(f"Total de linhas (após add_evaluation_window): {researchers.height}")
 
     productions_to_process = [
         (get_articles, "total_articles"),
@@ -90,6 +97,8 @@ def technological_production_and_innovation_csv(base_year=current_year):
         researchers = process_and_merge_production(
             researchers, get_func, col_name, base_year
         )
+        print(f"Total de linhas (após {col_name}): {researchers.height}")
+
     # Gerar CSV
     researchers.write_csv("data/csv/technological_production_and_innovation.csv")
     researchers.write_excel("data/csv/technological_production_and_innovation.xlsx")
@@ -97,16 +106,20 @@ def technological_production_and_innovation_csv(base_year=current_year):
 
 def transfer_of_technology_csv():
     researchers = get_researchers()
+    print(f"Total de linhas (inicial): {researchers.height}")
 
     # Bolsa
     foment_level = get_foment_level()
     researchers = merge_data(researchers, foment_level)
+    print(f"Total de linhas (após foment_level): {researchers.height}")
 
     # 5 ou 10 Anos
     researchers = add_evaluation_window(researchers)
+    print(f"Total de linhas (após add_evaluation_window): {researchers.height}")
 
     # Extraindo a partir da Sumula - AI
     researchers = get_transfer_of_technology(researchers)
+    print(f"Total de linhas (após transfer_of_technology): {researchers.height}")
 
     researchers.write_csv("data/csv/transfer_of_technology.csv")
     researchers.write_excel("data/csv/transfer_of_technology.xlsx")
@@ -114,13 +127,17 @@ def transfer_of_technology_csv():
 
 def participation_in_project_csv(base_year=current_year):
     researchers = get_researchers()
+    print(f"Total de linhas (inicial): {researchers.height}")
 
     # Bolsa
     foment_level = get_foment_level()
     researchers = merge_data(researchers, foment_level)
+    print(f"Total de linhas (após foment_level): {researchers.height}")
 
     # 5 ou 10 Anos
     researchers = add_evaluation_window(researchers)
+    print(f"Total de linhas (após add_evaluation_window): {researchers.height}")
+
     productions_to_process = [
         (get_scientific_projects, "total_scientific_projects"),
         (get_projects_with_companies, "total_projects_with_companies"),
@@ -130,19 +147,25 @@ def participation_in_project_csv(base_year=current_year):
         researchers = process_and_merge_production(
             researchers, get_func, col_name, base_year
         )
+        print(f"Total de linhas (após {col_name}): {researchers.height}")
+
     researchers.write_csv("data/csv/participation_in_project.csv")
     researchers.write_excel("data/csv/participation_in_project.xlsx")
 
 
 def human_resources_csv(base_year=current_year):
     researchers = get_researchers()
+    print(f"Total de linhas (inicial): {researchers.height}")
 
     # Bolsa
     foment_level = get_foment_level()
     researchers = merge_data(researchers, foment_level)
+    print(f"Total de linhas (após foment_level): {researchers.height}")
 
     # 5 ou 10 Anos
     researchers = add_evaluation_window(researchers)
+    print(f"Total de linhas (após add_evaluation_window): {researchers.height}")
+
     productions_to_process = [
         (get_guidance_postdoc, "total_guidance_postdoc"),
         (get_phd_completed, "total_phd_completed"),
@@ -154,6 +177,8 @@ def human_resources_csv(base_year=current_year):
         researchers = process_and_merge_production(
             researchers, get_func, col_name, base_year
         )
+        print(f"Total de linhas (após {col_name}): {researchers.height}")
+
     researchers.write_csv("data/csv/human_resources.csv")
     researchers.write_excel("data/csv/human_resources.xlsx")
 
@@ -163,7 +188,7 @@ def project_analysis_csv(base_year=current_year):
         if not os.path.exists(path):
             return set()
 
-        df = pl.read_csv(path)
+        df = pl.read_csv(path, schema_overrides={"lattes_id": pl.String})
         return set(df["lattes_id"].to_list())
 
     researchers = get_researchers()
@@ -173,6 +198,8 @@ def project_analysis_csv(base_year=current_year):
 
     researchers = add_evaluation_window(researchers)
 
+    researchers = researchers.with_columns(pl.col("lattes_id").cast(pl.String))
+
     output_path = "data/csv/project_analysis.csv"
 
     processed = get_processed_ids(output_path)
@@ -180,16 +207,16 @@ def project_analysis_csv(base_year=current_year):
     rows = list(researchers.iter_rows(named=True))
 
     for row in tqdm(rows, desc="Analisando projetos", total=len(rows)):
-        if row["lattes_id"] in processed:
-            continue
+        lattes_id = str(row["lattes_id"])
 
-        lattes_id = row["lattes_id"]
+        if lattes_id in processed:
+            continue
 
         resultado = evaluation(lattes_id)
 
         linha = {**row, **resultado}
 
-        df = pl.DataFrame([linha])
+        df = pl.DataFrame([linha]).with_columns(pl.col("lattes_id").cast(pl.String))
 
         if not os.path.exists(output_path):
             df.write_csv(output_path)
@@ -211,18 +238,28 @@ def unir_csv_xlsx_por_lattes_id(pasta, output="data/csv/researchers_unificado.xl
             continue
 
         if "lattes_id" in df.columns:
-            df = df.with_columns(pl.col("lattes_id").cast(pl.Utf8).str.zfill(16))
+            df = df.with_columns(
+                pl.col("lattes_id").cast(pl.Utf8).str.zfill(16)
+            ).unique(subset=["lattes_id"], keep="first")
 
         dfs.append(df)
 
+    if not dfs:
+        return None
+
     base = dfs[0]
+    print(f"Total de linhas base (inicial): {base.height}")
 
     for df in dfs[1:]:
+        if "lattes_id" not in df.columns:
+            continue
+
         cols_novas = [
             c for c in df.columns if c not in base.columns or c == "lattes_id"
         ]
         df = df.select(cols_novas)
         base = base.join(df, on="lattes_id", how="left")
+        print(f"Total de linhas base (após join com arquivo): {base.height}")
 
     if output.endswith(".csv"):
         base.write_csv(output)
@@ -232,7 +269,7 @@ def unir_csv_xlsx_por_lattes_id(pasta, output="data/csv/researchers_unificado.xl
     return base
 
 
-def start_process(base_year=current_year):
+def report_csv(base_year=current_year):
     researcher_profile_csv()
     technological_production_and_innovation_csv()
     transfer_of_technology_csv()

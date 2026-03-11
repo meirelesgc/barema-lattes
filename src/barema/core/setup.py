@@ -5,6 +5,7 @@ import click
 import polars as pl
 
 from barema.services.download_lattes import add_lattes_id, download_lattes_xml
+from barema.services.openAlex import scrapping_researcher_data
 from barema.services.pre_process_projects import (
     download_attachments,
     extract_project_metadata,
@@ -27,7 +28,7 @@ def db_up():
         sys.exit(1)
 
 
-def seed():
+def seeding():
     if click.confirm("Deseja semear o banco novamente?", default=False):
         try:
             print("Iniciando seeding")
@@ -50,7 +51,7 @@ def seed():
             sys.exit(1)
 
 
-def process_cvs():
+def populate_db():
     try:
         print("Preparando pesquisadores")
         folder_path = r"data/raw/projects"
@@ -77,6 +78,7 @@ def process_cvs():
             "barema_hop",
         ]
         subprocess.run(hop_command, check=True)
+        scrapping_researcher_data()
     except subprocess.CalledProcessError as e:
         print(f"Falha na execução. Código de saída: {e.returncode}")
         sys.exit(1)

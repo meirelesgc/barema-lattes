@@ -1,10 +1,9 @@
-from random import seed
-
 import click
 
-from barema.core.generate_report import start_process
+from barema.core.report_csv import report_csv
+from barema.core.report_production import report_production_csv
 from barema.core.review_data import review_data
-from barema.core.setup import db_up, process_cvs, seed
+from barema.core.setup import db_up, populate_db, seeding
 
 
 @click.group()
@@ -22,14 +21,15 @@ def review():
 def setup():
     click.echo("Iniciando a montagem do banco de dados...")
     db_up()
-    seed()
-    process_cvs()
+    seeding()
+    populate_db()
 
 
 @cli.command()
-def generate():
+def report():
     click.echo("Gerando o relatório...")
-    start_process()
+    report_csv()
+    report_production_csv()
 
 
 if __name__ == "__main__":
