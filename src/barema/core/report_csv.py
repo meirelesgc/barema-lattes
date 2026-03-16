@@ -1,12 +1,11 @@
 import os
 from datetime import datetime
-from pathlib import Path
 
 import polars as pl
 from tqdm import tqdm
 
 from barema.services.ai_evaluation import evaluation
-from barema.services.ai_extraction import get_transfer_of_technology
+from barema.services.ai_extraction import extract_data
 from barema.services.queries import (
     get_articles,
     get_assets_ip,
@@ -105,6 +104,12 @@ def technological_production_and_innovation_csv(base_year=current_year):
 
 
 def transfer_of_technology_csv():
+    def get_processed_ids(path):
+        if not os.path.exists(path):
+            return set()
+        df = pl.read_csv(path, schema_overrides={"lattes_id": pl.String})
+        return set(df["lattes_id"].to_list())
+
     researchers = get_researchers()
     print(f"Total de linhas (inicial): {researchers.height}")
 
@@ -117,12 +122,37 @@ def transfer_of_technology_csv():
     researchers = add_evaluation_window(researchers)
     print(f"Total de linhas (após add_evaluation_window): {researchers.height}")
 
-    # Extraindo a partir da Sumula - AI
-    researchers = get_transfer_of_technology(researchers)
-    print(f"Total de linhas (após transfer_of_technology): {researchers.height}")
+    researchers = researchers.with_columns(pl.col("lattes_id").cast(pl.String))
 
-    researchers.write_csv("data/csv/transfer_of_technology.csv")
-    researchers.write_excel("data/csv/transfer_of_technology.xlsx")
+    output_path = "data/csv/transfer_of_technology.csv"
+    processed = get_processed_ids(output_path)
+
+    rows = list(researchers.iter_rows(named=True))
+
+    for row in tqdm(
+        rows, desc="Extraindo Transferência de Tecnologia", total=len(rows)
+    ):
+        lattes_id = str(row["lattes_id"])
+
+        if lattes_id in processed:
+            continue
+
+        resultado = extract_data(lattes_id)
+
+        linha = {**row, **resultado}
+
+        df = pl.DataFrame([linha]).with_columns(pl.col("lattes_id").cast(pl.String))
+
+        if not os.path.exists(output_path):
+            df.write_csv(output_path)
+        else:
+            with open(output_path, "a", encoding="utf-8") as f:
+                df.write_csv(f, include_header=False)
+
+    if os.path.exists(output_path):
+        df_final = pl.read_csv(output_path, schema_overrides={"lattes_id": pl.String})
+        df_final.write_excel("data/csv/transfer_of_technology.xlsx")
+        print(f"Total de linhas (após transfer_of_technology): {df_final.height}")
 
 
 def participation_in_project_csv(base_year=current_year):
@@ -225,50 +255,6 @@ def project_analysis_csv(base_year=current_year):
                 df.write_csv(f, include_header=False)
 
 
-def unir_csv_xlsx_por_lattes_id(pasta, output="data/csv/researchers_unificado.xlsx"):
-    arquivos = sorted(Path(pasta).glob("*"))
-    dfs = []
-
-    for arq in arquivos:
-        if arq.suffix == ".csv":
-            df = pl.read_csv(arq)
-        elif arq.suffix in [".xlsx", ".xls"]:
-            df = pl.read_excel(arq)
-        else:
-            continue
-
-        if "lattes_id" in df.columns:
-            df = df.with_columns(
-                pl.col("lattes_id").cast(pl.Utf8).str.zfill(16)
-            ).unique(subset=["lattes_id"], keep="first")
-
-        dfs.append(df)
-
-    if not dfs:
-        return None
-
-    base = dfs[0]
-    print(f"Total de linhas base (inicial): {base.height}")
-
-    for df in dfs[1:]:
-        if "lattes_id" not in df.columns:
-            continue
-
-        cols_novas = [
-            c for c in df.columns if c not in base.columns or c == "lattes_id"
-        ]
-        df = df.select(cols_novas)
-        base = base.join(df, on="lattes_id", how="left")
-        print(f"Total de linhas base (após join com arquivo): {base.height}")
-
-    if output.endswith(".csv"):
-        base.write_csv(output)
-    else:
-        base.write_excel(output)
-
-    return base
-
-
 def report_csv(base_year=current_year):
     researcher_profile_csv()
     technological_production_and_innovation_csv()
@@ -276,4 +262,3 @@ def report_csv(base_year=current_year):
     participation_in_project_csv()
     human_resources_csv()
     project_analysis_csv()
-    unir_csv_xlsx_por_lattes_id("data/csv")
