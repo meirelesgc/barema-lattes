@@ -1,6 +1,6 @@
 import click
 
-from barema.core.report_generation import report_generation_process
+from barema.core.report_generation import generate_final_report
 from barema.core.report_production import report_production_csv
 from barema.core.review_data import review_data
 from barema.core.setup import db_up, populate_db, seeding
@@ -28,7 +28,7 @@ def setup():
 @cli.command()
 def report():
     click.echo("Gerando o relatório...")
-    report_generation_process()
+    generate_final_report()
     report_production_csv()
 
 
