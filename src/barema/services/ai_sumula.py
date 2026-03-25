@@ -19,9 +19,9 @@ XLSX_PATH = os.path.join(CACHE_DIR, "sumula_cache.xlsx")
 CACHE_SCHEMA = {
     "lattes_id": pl.Utf8,
     "sumula": pl.Utf8,
-    "transferencia_tecnologia_quantidade": pl.Int64,
+    "transferencia_tecnologia_nota": pl.Int64,
     "transferencia_tecnologia_observacao": pl.Utf8,
-    "extensao_inovadora_quantidade": pl.Int64,
+    "extensao_inovadora_nota": pl.Int64,
     "extensao_inovadora_observacao": pl.Utf8,
     "trajetoria_proponente": pl.Int64,
 }
@@ -46,9 +46,9 @@ def evaluation(lattes_id: str) -> dict:
     default_response = {
         "lattes_id": lattes_id,
         "sumula": "Não encontrado",
-        "transferencia_tecnologia_quantidade": 0,
+        "transferencia_tecnologia_nota": 0,
         "transferencia_tecnologia_observacao": "Relatório não encontrado",
-        "extensao_inovadora_quantidade": 0,
+        "extensao_inovadora_nota": 0,
         "extensao_inovadora_observacao": "Relatório não encontrado",
         "trajetoria_proponente": 0,
     }
@@ -103,9 +103,9 @@ def analyze_sumula(researchers: pl.DataFrame) -> pl.DataFrame:
 
     colunas_remover = [
         "sumula",
-        "transferencia_tecnologia_quantidade",
+        "transferencia_tecnologia_nota",
         "transferencia_tecnologia_observacao",
-        "extensao_inovadora_quantidade",
+        "extensao_inovadora_nota",
         "extensao_inovadora_observacao",
         "trajetoria_proponente",
     ]
