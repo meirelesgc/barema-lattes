@@ -24,11 +24,12 @@ EXPECTED_KEYS = [
     "objetivos_metas_relevancia",
     "metodologia_gestao",
     "colaboracoes_financiamento",
-    "potencial_inovacao_empreendedorismo",
-    "demandas_escalabilidade",
+    "potencial_inovacao",
+    "atendimento_necessidades",
     "maturidade_resultados",
-    "organizacao_parcerias_extensao",
-    "perfil_tecnologico",
+    "organizacao_parcerias",
+    "aderencia_area",
+    "parecer_final",
 ]
 
 
@@ -37,11 +38,12 @@ class EvaluationResult(BaseModel):
     objetivos_metas_relevancia: str
     metodologia_gestao: str
     colaboracoes_financiamento: str
-    potencial_inovacao_empreendedorismo: str
-    demandas_escalabilidade: str
+    potencial_inovacao: str
+    atendimento_necessidades: str
     maturidade_resultados: str
-    organizacao_parcerias_extensao: str
-    perfil_tecnologico: str
+    organizacao_parcerias: str
+    aderencia_area: str
+    parecer_final: str
 
 
 parser = PydanticOutputParser(pydantic_object=EvaluationResult)

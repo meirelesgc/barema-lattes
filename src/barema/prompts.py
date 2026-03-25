@@ -1,46 +1,59 @@
 INSTRUCAO_BASE = """
-Responda à pergunta com base apenas no documento fornecido.
-Elenque até três exemplos separados por virgulas
-Pule duas linhas e transcreva o trecho exato que contem esses exemplos
+Responda com base apenas no documento.
+O texto deve ser sucinto, contendo itens separados por vírgulas, de forma estritamente descritiva.
+Não utilize adjetivos.
+"""
+
+ORIENTACAO_GERAL = """
+Baseie-se na seguinte orientação para avaliação do projeto (PESO 2 - 0 a 10):
+- 0 a 4: Metodologia frágil, desenvolvimento tecnológico não evidente. Objetivos, metas e relevância para o setor produtivo não estão claros (se não tiver nada, até 3).
+- 5 a 6: Metodologia estruturada, desenvolvimento tecnológico e geração de produto ou processo evidentes.
+- 7 a 8: Desenvolvimento do produto viável, procedimentos de pesquisa explícitos, com equipe e parcerias estruturadas.
+- Acima de 8: Projeto inovador, gera produto ou serviço tecnológico, relação percurso do pesquisador x projeto coerente. Nota 9 ou superior exige comprovação de demanda ou relação com empresa/entidade/terceiro setor/público.
 """
 
 PROMPTS_AVALIACAO = {
     "publico_produto": f"""
-Qual é o público-alvo e o produto exato proposto pelo projeto?
-{INSTRUCAO_BASE}
-""",
+    Identifique o público alvo e o produto.
+    {INSTRUCAO_BASE}
+    """,
     "objetivos_metas_relevancia": f"""
-    Quais são os objetivos, as metas e a relevância deste projeto para o setor produtivo?
+    Identifique os objetivos, as metas e a relevância para o setor produtivo.
     {INSTRUCAO_BASE}
-""",
+    """,
     "metodologia_gestao": f"""
-    Como estão estruturadas a metodologia e a gestão da execução do projeto?
+    Descreva a metodologia e a gestão da execução.
     {INSTRUCAO_BASE}
-""",
+    """,
     "colaboracoes_financiamento": f"""
-    O projeto cita instituições colaboradoras, empresas financiadoras, ou algum financiamento anterior/atual de órgão de fomento?
+    Identifique instituições colaboradoras, empresas financiadoras, e financiamentos anteriores ou atuais de órgãos de fomento.
     {INSTRUCAO_BASE}
-""",
-    "potencial_inovacao_empreendedorismo": f"""
-    Qual é o potencial do projeto para a produção tecnológica, inovação e para ações de empreendedorismo inovador?
+    """,
+    "potencial_inovacao": f"""
+    Identifique o potencial para a produção tecnológica, inovação e ações de empreendedorismo inovador.
     {INSTRUCAO_BASE}
-""",
-    "demandas_escalabilidade": f"""
-    O projeto atende a demandas reais do mercado ou sociedade? Existe indicação clara de como será a escalabilidade e a adoção em larga escala da solução?
+    """,
+    "atendimento_necessidades": f"""
+    Identifique o atendimento a necessidades de criação ou melhoria de produtos, processos ou serviços demandadas por instituições do ambiente produtivo e social.
     {INSTRUCAO_BASE}
-""",
+    """,
     "maturidade_resultados": f"""
-    Qual é o nível de maturidade tecnológica atual (TRL) do projeto e quais resultados científicos e tecnológicos já foram alcançados?
+    Identifique o nível de maturidade tecnológica atual do projeto e os resultados científicos ou tecnológicos alcançados.
     {INSTRUCAO_BASE}
-""",
-    "organizacao_parcerias_extensao": f"""
-    Como é descrita a organização do projeto, a coerência com as pesquisas em desenvolvimento, as parcerias e a participação clara do proponente em atividades de desenvolvimento tecnológico ou extensão inovadora?
+    """,
+    "organizacao_parcerias": f"""
+    Identifique a organização, coerência com pesquisas em desenvolvimento, parcerias e participação do proponente em atividades de desenvolvimento tecnológico ou extensão inovadora.
     {INSTRUCAO_BASE}
-""",
-    "perfil_tecnologico": f"""
-    Qual é o perfil de enquadramento do projeto: EDU (Tecnologias Educacionais) ou SOC (Tecnologias Sociais)?
+    """,
+    "aderencia_area": f"""
+    Classifique a aderência à área de tecnologias sociais e educacionais exclusivamente como: alta, média ou baixa.
     {INSTRUCAO_BASE}
-""",
+    """,
+    "parecer_final": f"""
+    Elabore o parecer final do projeto indicando os elementos encontrados que justificam a nota, utilizando as diretrizes de pontuação.
+    {ORIENTACAO_GERAL}
+    {INSTRUCAO_BASE}
+    """,
 }
 
 INSTRUCAO_ESTRUTURADA = """
