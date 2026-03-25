@@ -2,9 +2,8 @@ import os
 from datetime import datetime
 
 import polars as pl
-from tqdm import tqdm
 
-from barema.services.ai_evaluation import evaluation
+from barema.services.ai_evaluation import evaluate_projects
 from barema.services.ai_extraction import get_transfer_of_technology
 from barema.services.ai_tag import analyze_funding_agencies
 from barema.services.queries import (
@@ -261,33 +260,21 @@ def human_resources_csv():
 
 
 def project_analysis_csv(base_year=current_year):
-    def get_processed_ids(path):
-        if not os.path.exists(path):
-            return set()
-        df = pl.read_csv(path, schema_overrides={"lattes_id": pl.String})
-        return set(df["lattes_id"].to_list())
-
     researchers = get_researchers()
     foment_level = get_foment_level()
+
     researchers = merge_data(researchers, foment_level)
     researchers = add_evaluation_window(researchers)
-    researchers = researchers.with_columns(pl.col("lattes_id").cast(pl.String))
-    output_path = "data/csv/project_analysis.csv"
-    processed = get_processed_ids(output_path)
-    rows = list(researchers.iter_rows(named=True))
 
-    for row in tqdm(rows, desc="Analisando projetos", total=len(rows)):
-        lattes_id = str(row["lattes_id"])
-        if lattes_id in processed:
-            continue
-        resultado = evaluation(lattes_id)
-        linha = {**row, **resultado}
-        df = pl.DataFrame([linha]).with_columns(pl.col("lattes_id").cast(pl.String))
-        if not os.path.exists(output_path):
-            df.write_csv(output_path)
-        else:
-            with open(output_path, "a", encoding="utf-8") as f:
-                df.write_csv(f, include_header=False)
+    df_final = evaluate_projects(researchers)
+
+    output_csv = "data/csv/project_analysis.csv"
+    output_xlsx = "data/csv/project_analysis.xlsx"
+
+    os.makedirs(os.path.dirname(output_csv), exist_ok=True)
+
+    df_final.write_csv(output_csv)
+    df_final.write_excel(output_xlsx)
 
 
 def _get_projects_base():
@@ -429,11 +416,17 @@ def participation_in_project_csv():
 def generate_final_report():
     os.makedirs("data/csv/output", exist_ok=True)
 
+    print("researcher_profile_csv")
     researcher_profile_csv()
+    print("technological_production_and_innovation_csv")
     technological_production_and_innovation_csv()
+    print("transfer_of_technology_csv")
     transfer_of_technology_csv()
+    print("project_analysis_csv")
     project_analysis_csv()
+    print("human_resources_csv")
     human_resources_csv()
+    print("participation_in_project_csv")
     participation_in_project_csv()
 
 
