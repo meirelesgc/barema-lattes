@@ -13,7 +13,7 @@ from barema.prompts import PROMPTS_AVALIACAO
 
 SETTINGS = Settings()
 
-CACHE_DIR = "data/raw/ai_cache"
+CACHE_DIR = "data/raw/cache"
 CSV_PATH = os.path.join(CACHE_DIR, "project_analysis_cache.csv")
 XLSX_PATH = os.path.join(CACHE_DIR, "project_analysis_cache.xlsx")
 

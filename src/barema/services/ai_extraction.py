@@ -13,7 +13,7 @@ from barema.core.settings import Settings
 
 SETTINGS = Settings()
 
-CACHE_DIR = "data/raw/ai_cache"
+CACHE_DIR = "data/raw/cache"
 CSV_PATH = os.path.join(CACHE_DIR, "transfer_tech_cache.csv")
 XLSX_PATH = os.path.join(CACHE_DIR, "transfer_tech_cache.xlsx")
 
