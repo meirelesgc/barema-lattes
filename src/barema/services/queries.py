@@ -230,77 +230,9 @@ def get_msc_ongoing():
     return pl.DataFrame(data, schema=schema)
 
 
-def get_coord_scientific_projects():
-    session = get_session()
-    query = """
-    SELECT rp.researcher_id::text, rp.start_year::INT AS year, COUNT(DISTINCT rp.id) as qtd
-    FROM research_project rp
-    WHERE EXISTS (
-        SELECT 1 
-        FROM research_project_components rpc 
-        JOIN researcher r ON r.lattes_id = rpc.lattes_id
-        WHERE rpc.project_id = rp.id 
-        AND r.id = rp.researcher_id 
-        AND rpc.coordinator IS TRUE
-    )
-    AND rp.nature = 'PESQUISA'
-    AND EXISTS (
-        SELECT 1 FROM research_project_foment rpf 
-        WHERE rpf.project_id = rp.id AND rpf.nature = 'AUXILIO_FINANCEIRO'
-    )
-    GROUP BY rp.researcher_id, rp.start_year;
-    """
-    result = session.execute(text(query))
-    data = result.mappings().all()
-    schema = {"researcher_id": pl.Utf8, "year": pl.Int32, "qtd": pl.Int64}
-    return pl.DataFrame(data, schema=schema)
-
-
-def get_coord_projects_with_companies():
-    session = get_session()
-    query = """
-    SELECT rp.researcher_id::text, rp.start_year::INT AS year, COUNT(DISTINCT rp.id) as qtd
-    FROM research_project rp
-    WHERE EXISTS (
-        SELECT 1 
-        FROM research_project_components rpc 
-        JOIN researcher r ON r.lattes_id = rpc.lattes_id
-        WHERE rpc.project_id = rp.id 
-        AND r.id = rp.researcher_id 
-        AND rpc.coordinator IS TRUE
-    )
-    AND (rp.nature != 'PESQUISA' OR rp.nature IS NULL)
-    AND EXISTS (
-        SELECT 1 FROM research_project_foment rpf 
-        WHERE rpf.project_id = rp.id AND rpf.nature = 'AUXILIO_FINANCEIRO'
-    )
-    GROUP BY rp.researcher_id, rp.start_year;
-    """
-    result = session.execute(text(query))
-    data = result.mappings().all()
-    schema = {"researcher_id": pl.Utf8, "year": pl.Int32, "qtd": pl.Int64}
-    return pl.DataFrame(data, schema=schema)
-
-
 def get_coord_research_projects():
     session = get_session()
     query = """
-    SELECT rp.researcher_id::text, rp.start_year::INT AS year, COUNT(DISTINCT rp.id) as qtd
-    FROM research_project rp
-    WHERE EXISTS (
-        SELECT 1 
-        FROM research_project_components rpc 
-        JOIN researcher r ON r.lattes_id = rpc.lattes_id
-        WHERE rpc.project_id = rp.id 
-        AND r.id = rp.researcher_id 
-        AND rpc.coordinator IS TRUE
-    )
-    AND rp.nature = 'PESQUISA'
-    AND NOT EXISTS (
-        SELECT 1 FROM research_project_foment rpf 
-        WHERE rpf.project_id = rp.id AND rpf.nature = 'AUXILIO_FINANCEIRO'
-    )
-    GROUP BY rp.researcher_id, rp.start_year;
     """
     result = session.execute(text(query))
     data = result.mappings().all()
@@ -425,4 +357,16 @@ def fat_cultivar():
         "researcher_id": pl.Utf8,
     }
 
+    return pl.DataFrame(data, schema=schema)
+
+
+def get_project_funding_agencies():
+    session = get_session()
+    query = """
+    SELECT DISTINCT agency_name::VARCHAR, NULL AS company_or_organization
+    FROM research_project_foment
+    """
+    result = session.execute(text(query))
+    data = result.mappings().all()
+    schema = {"agency_name": pl.Utf8, "company_or_organization": pl.Boolean}
     return pl.DataFrame(data, schema=schema)

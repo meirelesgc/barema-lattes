@@ -6,6 +6,7 @@ from tqdm import tqdm
 
 from barema.services.ai_evaluation import evaluation
 from barema.services.ai_extraction import extract_data
+from barema.services.ai_tag import analyze_funding_agencies
 from barema.services.queries import (
     get_articles,
     get_books,
@@ -19,10 +20,8 @@ from barema.services.queries import (
     get_phd_completed,
     get_phd_ongoing,
     get_phd_time,
-    get_projects_with_companies,
-    get_research_projects,
+    get_project_funding_agencies,
     get_researchers,
-    get_scientific_projects,
     get_software,
 )
 from barema.services.report_utils import (
@@ -260,24 +259,6 @@ def transfer_of_technology_csv():
         df_final.write_excel("data/csv/transfer_of_technology.xlsx")
 
 
-def participation_in_project_csv(base_year=current_year):
-    researchers = get_researchers()
-    foment_level = get_foment_level()
-    researchers = merge_data(researchers, foment_level)
-    researchers = add_evaluation_window(researchers)
-    productions_to_process = [
-        (get_scientific_projects, "total_scientific_projects"),
-        (get_projects_with_companies, "total_projects_with_companies"),
-        (get_research_projects, "total_research_projects"),
-    ]
-    for get_func, col_name in productions_to_process:
-        researchers = process_and_merge_production(
-            researchers, get_func, col_name, base_year
-        )
-    researchers.write_csv("data/csv/participation_in_project.csv")
-    researchers.write_excel("data/csv/participation_in_project.xlsx")
-
-
 def human_resources_csv():
     researchers = get_researchers()
     foment_level = get_foment_level()
@@ -326,95 +307,21 @@ def project_analysis_csv(base_year=current_year):
                 df.write_csv(f, include_header=False)
 
 
-def translate_file(file_name, config):
-    input_csv = f"data/csv/{file_name}.csv"
-    output_csv = f"data/csv/output/{file_name}.csv"
-    output_xlsx = f"data/csv/output/{file_name}.xlsx"
-
-    if not os.path.exists(input_csv):
-        return
-
-    df = pl.read_csv(input_csv, infer_schema_length=None)
-
-    rename_map = {}
-    for item in config:
-        original = item["original"]
-        new = item["new"]
-        default = item["default"]
-
-        if original != "_" and original in df.columns:
-            df = df.with_columns(pl.col(original).fill_null(default))
-            rename_map[original] = new
-
-    df = df.rename(rename_map)
-
-    seen = set()
-    dedup_map = {}
-    for col in df.columns:
-        col_lower = col.lower()
-        if col_lower in seen:
-            dedup_map[col] = f"{col}_dup"
-        else:
-            seen.add(col_lower)
-
-    if dedup_map:
-        df = df.rename(dedup_map)
-
-    df.write_csv(output_csv)
-    df.write_excel(output_xlsx)
-
-
-def load_and_merge():
-    dfs = []
-
-    for file in FILES:
-        if os.path.exists(file):
-            df = pl.read_csv(file, schema_overrides={"lattes_id": pl.String})
-            dfs.append(df)
-
-    base = dfs[0]
-
-    for df in dfs[1:]:
-        new_cols = [c for c in df.columns if c not in base.columns or c == "lattes_id"]
-        df = df.select(new_cols)
-        base = base.join(df, on="lattes_id", how="left")
-
-    return base
-
-
-def apply_config(df):
-    expressions = []
-
-    for item in CONFIG:
-        original = item["original"]
-        new = item["new"]
-        default = item["default"]
-
-        if original != "_" and original in df.columns:
-            expressions.append(pl.col(original).fill_null(default).alias(new))
-        else:
-            expressions.append(pl.lit(default).alias(new))
-
-    return df.select(expressions)
+def participation_in_project_csv():
+    agencies = get_project_funding_agencies()
+    df_analyzed = analyze_funding_agencies(agencies)
+    print(df_analyzed)
 
 
 def generate_final_report():
     os.makedirs("data/csv/output", exist_ok=True)
 
-    researcher_profile_csv()
-    technological_production_and_innovation_csv()
-    transfer_of_technology_csv()
+    # researcher_profile_csv()
+    # technological_production_and_innovation_csv()
+    # transfer_of_technology_csv()
+    # project_analysis_csv()
+    # human_resources_csv()
     participation_in_project_csv()
-    human_resources_csv()
-    project_analysis_csv()
-
-    df = load_and_merge()
-    df = apply_config(df)
-
-    os.makedirs("data/final", exist_ok=True)
-
-    df.write_csv("data/final/barema_final.csv")
-    df.write_excel("data/final/barema_final.xlsx")
 
 
 if __name__ == "__main__":
