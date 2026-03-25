@@ -42,3 +42,31 @@ Qual é o público-alvo e o produto exato proposto pelo projeto?
     {INSTRUCAO_BASE}
 """,
 }
+
+
+INSTRUCAO_ESTRUTURADA = """
+Você deve extrair informações do documento e retornar EXCLUSIVAMENTE um objeto JSON com as seguintes chaves:
+
+1. "sumula": Texto sintético com até 5 realizações, formação, atuações, prêmios, financiamentos e indicadores (h-index, citações).
+2. "transferencia_tecnologia_quantidade": Número inteiro representando o total de ações/produtos.
+3. "transferencia_tecnologia_observacao": Descrição objetiva dos itens contados, tipos de tecnologia e alcance.
+4. "extensao_inovadora_quantidade": Número inteiro de ações de extensão, parcerias e popularização da ciência.
+5. "extensao_inovadora_observacao": Detalhamento do tipo de ação, público e forma de transferência.
+6. "trajetoria_proponente": Valor numérico 10 (ALTA), 7 (MÉDIA) ou 4 (BAIXA).
+
+Critérios para Trajetória:
+- 10: Trajetória consistente e central na área.
+- 7: Atuação parcial ou complementar.
+- 4: Pouca relação com a área.
+
+Critérios para Transferência (Abrangência):
+- Nacional/Estadual (nível 10)
+- Regional (nível 9)
+- Municipal (nível 8)
+- Entidade (nível 7)
+"""
+
+PROMPT_BAREMA_NOVO = f"""
+Analise o currículo fornecido e preencha os campos conforme as instruções.
+{INSTRUCAO_ESTRUTURADA}
+"""

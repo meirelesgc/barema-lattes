@@ -11,7 +11,7 @@ def get_researchers():
         openalex_researcher.h_index, last_update::varchar AS last_update
     FROM researcher
     LEFT JOIN openalex_researcher ON
-        openalex_researcher.researcher_id = researcher.id WHERE lattes_id = '8121264125922144'
+        openalex_researcher.researcher_id = researcher.id
     """
     result = session.execute(text(query))
     data = result.mappings().all()
@@ -215,6 +215,57 @@ def get_msc_completed():
     return pl.DataFrame(data, schema=schema)
 
 
+def get_project_funding_agencies():
+    session = get_session()
+    query = """
+    SELECT DISTINCT agency_name::VARCHAR, NULL AS company_or_organization
+    FROM research_project_foment
+    """
+    result = session.execute(text(query))
+    data = result.mappings().all()
+    schema = {"agency_name": pl.Utf8, "company_or_organization": pl.Boolean}
+    return pl.DataFrame(data, schema=schema)
+
+
+def get_research_projects():
+    session = get_session()
+    query = """
+    SELECT 
+        rp.id::text AS project_id, 
+        rp.researcher_id::text, 
+        COALESCE(rp.end_year, EXTRACT(YEAR FROM CURRENT_DATE)::INT) AS year, 
+        ARRAY_AGG(rpf.agency_name) AS agency_names,
+        EXISTS (
+            SELECT 1 
+            FROM research_project_components rpc 
+            JOIN researcher r ON r.lattes_id = rpc.lattes_id
+            WHERE rpc.project_id = rp.id 
+            AND r.id = rp.researcher_id 
+            AND rpc.coordinator IS TRUE
+        ) AS is_coordinator,
+        rp.nature
+    FROM research_project rp
+    LEFT JOIN research_project_foment rpf 
+        ON rpf.project_id = rp.id
+    GROUP BY 
+        rp.id, 
+        rp.researcher_id, 
+        year,
+        rp.nature;
+    """
+    result = session.execute(text(query))
+    data = result.mappings().all()
+    schema = {
+        "project_id": pl.String,
+        "researcher_id": pl.String,
+        "year": pl.Int32,
+        "agency_names": pl.List(pl.String),
+        "is_coordinator": pl.Boolean,
+        "nature": pl.String,
+    }
+    return pl.DataFrame(data, schema=schema)
+
+
 def get_msc_ongoing():
     session = get_session()
     query = """
@@ -357,16 +408,4 @@ def fat_cultivar():
         "researcher_id": pl.Utf8,
     }
 
-    return pl.DataFrame(data, schema=schema)
-
-
-def get_project_funding_agencies():
-    session = get_session()
-    query = """
-    SELECT DISTINCT agency_name::VARCHAR, NULL AS company_or_organization
-    FROM research_project_foment
-    """
-    result = session.execute(text(query))
-    data = result.mappings().all()
-    schema = {"agency_name": pl.Utf8, "company_or_organization": pl.Boolean}
     return pl.DataFrame(data, schema=schema)

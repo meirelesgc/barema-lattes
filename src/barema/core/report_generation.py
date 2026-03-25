@@ -5,7 +5,7 @@ import polars as pl
 from tqdm import tqdm
 
 from barema.services.ai_evaluation import evaluation
-from barema.services.ai_extraction import extract_data
+from barema.services.ai_extraction import get_transfer_of_technology
 from barema.services.ai_tag import analyze_funding_agencies
 from barema.services.queries import (
     get_articles,
@@ -21,6 +21,7 @@ from barema.services.queries import (
     get_phd_ongoing,
     get_phd_time,
     get_project_funding_agencies,
+    get_research_projects,
     get_researchers,
     get_software,
 )
@@ -224,39 +225,21 @@ def technological_production_and_innovation_csv(base_year=current_year):
 
 
 def transfer_of_technology_csv():
-    def get_processed_ids(path):
-        if not os.path.exists(path):
-            return set()
-        df = pl.read_csv(path, schema_overrides={"lattes_id": pl.String})
-        return set(df["lattes_id"].to_list())
-
     researchers = get_researchers()
     foment_level = get_foment_level()
+
     researchers = merge_data(researchers, foment_level)
     researchers = add_evaluation_window(researchers)
-    researchers = researchers.with_columns(pl.col("lattes_id").cast(pl.String))
-    output_path = "data/csv/transfer_of_technology.csv"
-    processed = get_processed_ids(output_path)
-    rows = list(researchers.iter_rows(named=True))
 
-    for row in tqdm(
-        rows, desc="Extraindo Transferência de Tecnologia", total=len(rows)
-    ):
-        lattes_id = str(row["lattes_id"])
-        if lattes_id in processed:
-            continue
-        resultado = extract_data(lattes_id)
-        linha = {**row, **resultado}
-        df = pl.DataFrame([linha]).with_columns(pl.col("lattes_id").cast(pl.String))
-        if not os.path.exists(output_path):
-            df.write_csv(output_path)
-        else:
-            with open(output_path, "a", encoding="utf-8") as f:
-                df.write_csv(f, include_header=False)
+    df_final = get_transfer_of_technology(researchers)
 
-    if os.path.exists(output_path):
-        df_final = pl.read_csv(output_path, schema_overrides={"lattes_id": pl.String})
-        df_final.write_excel("data/csv/transfer_of_technology.xlsx")
+    output_csv = "data/csv/transfer_of_technology.csv"
+    output_xlsx = "data/csv/transfer_of_technology.xlsx"
+
+    os.makedirs(os.path.dirname(output_csv), exist_ok=True)
+
+    df_final.write_csv(output_csv)
+    df_final.write_excel(output_xlsx)
 
 
 def human_resources_csv():
@@ -307,20 +290,150 @@ def project_analysis_csv(base_year=current_year):
                 df.write_csv(f, include_header=False)
 
 
-def participation_in_project_csv():
+def _get_projects_base():
     agencies = get_project_funding_agencies()
     df_analyzed = analyze_funding_agencies(agencies)
-    print(df_analyzed)
+    projects = get_research_projects()
+
+    return (
+        projects.explode("agency_names")
+        .join(df_analyzed, left_on="agency_names", right_on="agency_name", how="left")
+        .group_by(["project_id", "researcher_id", "year", "is_coordinator", "nature"])
+        .agg(
+            [
+                pl.col("agency_names"),
+                pl.col("company_or_organization").any().alias("has_company_funding"),
+            ]
+        )
+    )
+
+
+def get_coord_cientifico_tecnologico():
+    df = _get_projects_base()
+    df = df.filter(
+        (pl.col("nature") != "PESQUISA")
+        & (~pl.col("has_company_funding"))
+        & (pl.col("is_coordinator"))
+    )
+    df = df.group_by(["researcher_id", "year"]).agg(pl.count().alias("qtd"))
+    return df.with_columns(
+        [
+            pl.col("researcher_id").cast(pl.Utf8),
+            pl.col("year").cast(pl.Int32),
+            pl.col("qtd").cast(pl.Int64),
+        ]
+    )
+
+
+def get_membro_cientifico_tecnologico():
+    df = _get_projects_base()
+    df = df.filter(
+        (pl.col("nature") != "PESQUISA")
+        & (~pl.col("has_company_funding"))
+        & (~pl.col("is_coordinator"))
+    )
+    df = df.group_by(["researcher_id", "year"]).agg(pl.count().alias("qtd"))
+    return df.with_columns(
+        [
+            pl.col("researcher_id").cast(pl.Utf8),
+            pl.col("year").cast(pl.Int32),
+            pl.col("qtd").cast(pl.Int64),
+        ]
+    )
+
+
+def get_coord_empresa():
+    df = _get_projects_base()
+    df = df.filter((pl.col("has_company_funding")) & (pl.col("is_coordinator")))
+    df = df.group_by(["researcher_id", "year"]).agg(pl.count().alias("qtd"))
+    return df.with_columns(
+        [
+            pl.col("researcher_id").cast(pl.Utf8),
+            pl.col("year").cast(pl.Int32),
+            pl.col("qtd").cast(pl.Int64),
+        ]
+    )
+
+
+def get_membro_empresa():
+    df = _get_projects_base()
+    df = df.filter((pl.col("has_company_funding")) & (~pl.col("is_coordinator")))
+    df = df.group_by(["researcher_id", "year"]).agg(pl.count().alias("qtd"))
+    return df.with_columns(
+        [
+            pl.col("researcher_id").cast(pl.Utf8),
+            pl.col("year").cast(pl.Int32),
+            pl.col("qtd").cast(pl.Int64),
+        ]
+    )
+
+
+def get_coord_pesquisa():
+    df = _get_projects_base()
+    df = df.filter(
+        (pl.col("nature") == "PESQUISA")
+        & (~pl.col("has_company_funding"))
+        & (pl.col("is_coordinator"))
+    )
+    df = df.group_by(["researcher_id", "year"]).agg(pl.count().alias("qtd"))
+    return df.with_columns(
+        [
+            pl.col("researcher_id").cast(pl.Utf8),
+            pl.col("year").cast(pl.Int32),
+            pl.col("qtd").cast(pl.Int64),
+        ]
+    )
+
+
+def get_membro_pesquisa():
+    df = _get_projects_base()
+    df = df.filter(
+        (pl.col("nature") == "PESQUISA")
+        & (~pl.col("has_company_funding"))
+        & (~pl.col("is_coordinator"))
+    )
+    df = df.group_by(["researcher_id", "year"]).agg(pl.count().alias("qtd"))
+    return df.with_columns(
+        [
+            pl.col("researcher_id").cast(pl.Utf8),
+            pl.col("year").cast(pl.Int32),
+            pl.col("qtd").cast(pl.Int64),
+        ]
+    )
+
+
+def participation_in_project_csv():
+    researchers = get_researchers()
+    foment_level = get_foment_level()
+    researchers = merge_data(researchers, foment_level)
+    researchers = add_evaluation_window(researchers)
+
+    productions_to_process = [
+        (get_coord_cientifico_tecnologico, "coord_cientifico_tecnologico"),
+        (get_membro_cientifico_tecnologico, "membro_cientifico_tecnologico"),
+        (get_coord_empresa, "coord_empresa"),
+        (get_membro_empresa, "membro_empresa"),
+        (get_coord_pesquisa, "coord_pesquisa"),
+        (get_membro_pesquisa, "membro_pesquisa"),
+    ]
+
+    for get_func, col_name in productions_to_process:
+        researchers = process_and_merge_production(
+            researchers, get_func, col_name, current_year
+        )
+
+    researchers.write_csv("data/csv/participation_in_project.csv")
+    researchers.write_excel("data/csv/participation_in_project.xlsx")
 
 
 def generate_final_report():
     os.makedirs("data/csv/output", exist_ok=True)
 
-    # researcher_profile_csv()
-    # technological_production_and_innovation_csv()
-    # transfer_of_technology_csv()
-    # project_analysis_csv()
-    # human_resources_csv()
+    researcher_profile_csv()
+    technological_production_and_innovation_csv()
+    transfer_of_technology_csv()
+    project_analysis_csv()
+    human_resources_csv()
     participation_in_project_csv()
 
 

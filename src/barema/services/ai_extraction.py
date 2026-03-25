@@ -7,10 +7,16 @@ from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
+from tqdm import tqdm
 
 from barema.core.settings import Settings
 
 SETTINGS = Settings()
+
+CACHE_DIR = "data/raw/ai_cache"
+CSV_PATH = os.path.join(CACHE_DIR, "transfer_tech_cache.csv")
+XLSX_PATH = os.path.join(CACHE_DIR, "transfer_tech_cache.xlsx")
+
 llm = ChatOpenAI(api_key=SETTINGS.OPENAI_API_KEY, model="gpt-4o-mini", temperature=0)
 
 
@@ -74,11 +80,12 @@ def _load_text_from_pdf(file_path: str) -> str:
     return "\n".join(texts)
 
 
-def extract_data(lattes_id: str):
+def extract_data(lattes_id: str) -> dict:
     file_path = f"data/raw/projects/{lattes_id}.pdf"
 
     if not os.path.exists(file_path):
         return {
+            "lattes_id": lattes_id,
             "licenciamento_qtd": 0,
             "licenciamento": None,
             "servicos_qtd": 0,
@@ -92,6 +99,7 @@ def extract_data(lattes_id: str):
     text = _load_text_from_pdf(file_path)
     parsed = chain.invoke({"text": text})
     return {
+        "lattes_id": lattes_id,
         "licenciamento_qtd": parsed.licenciamento_qtd,
         "licenciamento": parsed.licenciamento,
         "servicos_qtd": parsed.servicos_qtd,
@@ -103,25 +111,63 @@ def extract_data(lattes_id: str):
     }
 
 
-def get_transfer_of_technology(researchers: pl.DataFrame):
-    result = researchers.with_columns(
-        pl.col("lattes_id")
-        .map_elements(
-            extract_data,
-            return_dtype=pl.Struct(
-                {
-                    "licenciamento_qtd": pl.Int64,
-                    "licenciamento": pl.Utf8,
-                    "servicos_qtd": pl.Int64,
-                    "servicos": pl.Utf8,
-                    "empresas_qtd": pl.Int64,
-                    "empresas": pl.Utf8,
-                    "demanda_qtd": pl.Int64,
-                    "demanda": pl.Utf8,
-                }
-            ),
-        )
-        .alias("extraction")
-    ).unnest("extraction")
+def load_cache() -> pl.DataFrame:
+    if os.path.exists(CSV_PATH):
+        return pl.read_csv(CSV_PATH, schema_overrides={"lattes_id": pl.Utf8})
 
-    return result
+    return pl.DataFrame(
+        schema={
+            "lattes_id": pl.Utf8,
+            "licenciamento_qtd": pl.Int64,
+            "licenciamento": pl.Utf8,
+            "servicos_qtd": pl.Int64,
+            "servicos": pl.Utf8,
+            "empresas_qtd": pl.Int64,
+            "empresas": pl.Utf8,
+            "demanda_qtd": pl.Int64,
+            "demanda": pl.Utf8,
+        }
+    )
+
+
+def save_cache(df: pl.DataFrame):
+    os.makedirs(CACHE_DIR, exist_ok=True)
+    df.write_csv(CSV_PATH)
+    df.write_excel(XLSX_PATH)
+
+
+def get_transfer_of_technology(df_researchers: pl.DataFrame) -> pl.DataFrame:
+    cache = load_cache()
+    cached_ids = set(cache["lattes_id"].to_list())
+
+    df_researchers = df_researchers.with_columns(pl.col("lattes_id").cast(pl.Utf8))
+    all_ids = df_researchers["lattes_id"].to_list()
+
+    new_ids = [lid for lid in all_ids if lid not in cached_ids]
+    results = []
+
+    for lattes_id in tqdm(new_ids, desc="Extraindo Transferência de Tecnologia"):
+        result = extract_data(lattes_id)
+        results.append(result)
+
+    if results:
+        df_new = pl.DataFrame(
+            results,
+            schema={
+                "lattes_id": pl.Utf8,
+                "licenciamento_qtd": pl.Int64,
+                "licenciamento": pl.Utf8,
+                "servicos_qtd": pl.Int64,
+                "servicos": pl.Utf8,
+                "empresas_qtd": pl.Int64,
+                "empresas": pl.Utf8,
+                "demanda_qtd": pl.Int64,
+                "demanda": pl.Utf8,
+            },
+        )
+        cache = pl.concat([cache, df_new], how="vertical")
+        cache = cache.unique(subset=["lattes_id"], keep="last")
+        save_cache(cache)
+
+    df_final = df_researchers.join(cache, on="lattes_id", how="left")
+    return df_final
