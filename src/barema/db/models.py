@@ -546,7 +546,7 @@ class Patent:
     researcher_id: Mapped[Optional[UUID]] = mapped_column(
         ForeignKey("researcher.id"), default=None
     )
-    code: Mapped[Optional[str]] = mapped_column(String, unique=True, default=None)
+    code: Mapped[Optional[str]] = mapped_column(String, unique=False, default=None)
     grant_date: Mapped[Optional[datetime]] = mapped_column(default=None)
     deposit_date: Mapped[Optional[str]] = mapped_column(String, default=None)
     is_new: Mapped[Optional[bool]] = mapped_column(

@@ -51,25 +51,33 @@ def seeding():
             sys.exit(1)
 
 
+def surac_pipeline():
+    print("Preparando pesquisadores")
+    folder_path = r"data/raw/projects"
+    researchers = extract_project_metadata(folder_path)
+    researchers = pl.DataFrame(
+        researchers,
+        schema={
+            "Arquivo": pl.Utf8,
+            "Nome": pl.Utf8,
+            "CPF": pl.Utf8,
+            "Link": pl.Utf8,
+        },
+    )
+    researchers = add_lattes_id(researchers)
+    normalize_filename(researchers, folder_path, "Arquivo")
+    download_attachments(researchers, folder_path)
+    download_lattes_xml(researchers)
+
+def regular_pipeline():
+    folder_path = r"data/raw/researchers.csv"
+    researchers = pl.read_csv(folder_path)
+    download_lattes_xml(researchers)
+    
 def populate_db():
     try:
-        print("Preparando pesquisadores")
-        folder_path = r"data/raw/projects"
-        researchers = extract_project_metadata(folder_path)
-        researchers = pl.DataFrame(
-            researchers,
-            schema={
-                "Arquivo": pl.Utf8,
-                "Nome": pl.Utf8,
-                "CPF": pl.Utf8,
-                "Link": pl.Utf8,
-            },
-        )
-        researchers = add_lattes_id(researchers)
-        normalize_filename(researchers, folder_path, "Arquivo")
-        download_attachments(researchers, folder_path)
-        download_lattes_xml(researchers)
-
+        # surac_pipeline()
+        regular_pipeline()
         hop_command = [
             "docker",
             "compose",
